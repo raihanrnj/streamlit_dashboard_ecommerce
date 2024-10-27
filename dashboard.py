@@ -42,77 +42,101 @@ with col3:
     avg_freight = format_currency(filtered_df['freight_value'].mean(), "USD", locale="en_US")
     st.metric("Average Freight Cost", avg_freight)
 
-# Plotting order trends
-st.subheader("Order Trends Over Time")
-daily_orders = filtered_df.resample('D', on='order_purchase_timestamp')['order_id'].nunique()
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(daily_orders.index, daily_orders.values, color="#4c72b0", marker="o")
-ax.set_title("Daily Orders", fontsize=16)
-ax.set_xlabel("Date", fontsize=12)
-ax.set_ylabel("Order Count", fontsize=12)
-st.pyplot(fig)
-
-# Payment type distribution
-st.subheader("Payment Distribution")
+# Visualisasi 1: Distribusi Metode Pembayaran
+st.subheader("Distribusi Metode Pembayaran")
 col1, col2 = st.columns(2)
 
 with col1:
-    payment_counts = filtered_df['payment_type'].value_counts()
-    fig, ax = plt.subplots()
-    payment_counts.plot(kind='pie', autopct='%1.1f%%', startangle=140, colors=sns.color_palette("muted"))
-    ax.set_ylabel('')
-    ax.set_title('Payment Types')
-    st.pyplot(fig)
+    plt.figure(figsize=(8, 6))
+    sns.countplot(data=filtered_df, x='payment_type', palette='viridis', order=filtered_df['payment_type'].value_counts().index)
+    plt.title("Distribusi Metode Pembayaran")
+    plt.xlabel("Tipe Pembayaran")
+    plt.ylabel("Jumlah Transaksi")
+    st.pyplot(plt)
 
+# Visualisasi 2: Persentase Keterlambatan Berdasarkan Metode Pembayaran
 with col2:
-    installments = filtered_df['payment_installments'].value_counts().sort_index()
-    fig, ax = plt.subplots()
-    sns.barplot(x=installments.index, y=installments.values, ax=ax, palette="muted")
-    ax.set_title("Installment Distribution")
-    ax.set_xlabel("Installment Count")
-    ax.set_ylabel("Number of Orders")
-    st.pyplot(fig)
+    filtered_df['delay_days'] = (filtered_df['order_delivered_customer_date'] - filtered_df['order_estimated_delivery_date']).dt.days
+    filtered_df['is_late'] = filtered_df['delay_days'].apply(lambda x: 'Late' if x > 0 else 'On Time')
 
-# Top and Bottom Products
-st.subheader("Product Performance")
-top_products = filtered_df.groupby("product_id")['order_item_id'].count().nlargest(5)
-bottom_products = filtered_df.groupby("product_id")['order_item_id'].count().nsmallest(5)
+    payment_delay = filtered_df.groupby(['payment_type', 'is_late']).size().unstack().fillna(0)
+    payment_delay['Late_Percentage'] = (payment_delay['Late'] / (payment_delay['Late'] + payment_delay['On Time'])) * 100
 
-fig, ax = plt.subplots(1, 2, figsize=(14, 6))
-sns.barplot(x=top_products.values, y=top_products.index, ax=ax[0], palette="viridis")
-ax[0].set_title("Top 5 Best Selling Products")
-sns.barplot(x=bottom_products.values, y=bottom_products.index, ax=ax[1], palette="magma")
-ax[1].set_title("Top 5 Worst Selling Products")
-st.pyplot(fig)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=payment_delay.index, y=payment_delay['Late_Percentage'], palette='viridis')
+    plt.title('Persentase Keterlambatan Berdasarkan Metode Pembayaran')
+    plt.xlabel('Metode Pembayaran')
+    plt.ylabel('Persentase Keterlambatan (%)')
+    st.pyplot(plt)
 
-# Customer demographics by location
-st.subheader("Customer Demographics by Location")
+# Visualisasi 3: Waktu Pengiriman
+st.subheader("Waktu Pengiriman")
 col1, col2 = st.columns(2)
 
 with col1:
-    city_counts = filtered_df['customer_city'].value_counts().head(10)
-    fig, ax = plt.subplots()
-    sns.barplot(x=city_counts.values, y=city_counts.index, palette="Blues_d", ax=ax)
-    ax.set_title("Top 10 Customer Cities")
-    st.pyplot(fig)
+    delivery_times = (filtered_df['order_delivered_customer_date'] - filtered_df['order_purchase_timestamp']).dt.days
+    plt.figure(figsize=(10, 5))
+    sns.histplot(delivery_times, bins=20, kde=True, color="skyblue")
+    plt.title("Distribusi Waktu Pengiriman")
+    plt.xlabel("Waktu Pengiriman (hari)")
+    plt.ylabel("Frekuensi")
+    st.pyplot(plt)
 
+# Visualisasi 4: Jumlah Keterlambatan Berdasarkan Kota (Top 10)
 with col2:
-    state_counts = filtered_df['customer_state'].value_counts()
-    fig, ax = plt.subplots()
-    state_counts.plot(kind='pie', autopct='%1.1f%%', startangle=140, colors=sns.color_palette("pastel"), ax=ax)
-    ax.set_ylabel('')
-    ax.set_title("Customer Distribution by State")
-    st.pyplot(fig)
+    city_late_counts = filtered_df[filtered_df['is_late'] == 'Late'].groupby('customer_city').size().sort_values(ascending=False).head(10)
 
-# Delivery Analysis
-st.subheader("Delivery Times")
-delivery_times = (filtered_df['order_delivered_customer_date'] - filtered_df['order_purchase_timestamp']).dt.days
-fig, ax = plt.subplots(figsize=(10, 5))
-sns.histplot(delivery_times, bins=20, kde=True, color="skyblue")
-ax.set_title("Distribution of Delivery Times")
-ax.set_xlabel("Delivery Time (days)")
-ax.set_ylabel("Frequency")
-st.pyplot(fig)
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x=city_late_counts.index, y=city_late_counts.values, palette='magma')
+    plt.title('Jumlah Keterlambatan Berdasarkan Kota (Top 10)')
+    plt.xlabel('Kota')
+    plt.ylabel('Jumlah Keterlambatan')
+    plt.xticks(rotation=45)
+    st.pyplot(plt)
+
+# Visualisasi 5: Kinerja Produk
+st.subheader("Kinerja Produk")
+col1, col2 = st.columns(2)
+
+with col1:
+    top_products = filtered_df.groupby("product_id")['order_item_id'].count().nlargest(5)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=top_products.values, y=top_products.index, palette="viridis")
+    plt.title("Top 5 Produk Terlaris")
+    plt.xlabel("Jumlah Transaksi")
+    plt.ylabel("Produk")
+    st.pyplot(plt)
+
+# Visualisasi 6: Top 5 Produk Terburuk
+with col2:
+    bottom_products = filtered_df.groupby("product_id")['order_item_id'].count().nsmallest(5)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=bottom_products.values, y=bottom_products.index, palette="magma")
+    plt.title("Top 5 Produk Terburuk")
+    plt.xlabel("Jumlah Transaksi")
+    plt.ylabel("Produk")
+    st.pyplot(plt)
+
+# Visualisasi 7: Distribusi Biaya Pengiriman
+st.subheader("Distribusi Biaya Pengiriman")
+col1, col2 = st.columns(2)
+
+with col1:
+    plt.figure(figsize=(10, 6))
+    sns.histplot(filtered_df['freight_value'], bins=30, kde=True, color="green")
+    plt.title("Distribusi Biaya Pengiriman")
+    plt.xlabel("Biaya Pengiriman")
+    plt.ylabel("Frekuensi")
+    st.pyplot(plt)
+
+# Visualisasi 8: Distribusi Jumlah Cicilan
+with col2:
+    plt.figure(figsize=(10, 6))
+    sns.countplot(data=filtered_df, x='payment_installments', palette='muted')
+    plt.title("Distribusi Jumlah Cicilan")
+    plt.xlabel("Jumlah Cicilan")
+    plt.ylabel("Jumlah Transaksi")
+    st.pyplot(plt)
 
 # Footer
 st.caption("Data sourced from E-commerce dataset. Copyright by Raihan © 2024 ")
