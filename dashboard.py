@@ -43,7 +43,7 @@ with col3:
     st.metric("Average Freight Cost", avg_freight)
 
 # Visualisasi 1: Distribusi Metode Pembayaran
-st.subheader("Distribusi Metode Pembayaran")
+st.subheader("Distribusi Metode Pembayaran (Q1)")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -70,7 +70,7 @@ with col2:
     st.pyplot(plt)
 
 # Visualisasi 3: Waktu Pengiriman
-st.subheader("Waktu Pengiriman")
+st.subheader("Waktu Pengiriman  (Q2)")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -137,6 +137,27 @@ with col2:
     plt.xlabel("Jumlah Cicilan")
     plt.ylabel("Jumlah Transaksi")
     st.pyplot(plt)
+    
+# Customer demographics by location
+st.subheader("Customer Demographics by Location")
+col1, col2 = st.columns(2)
+
+with col1:
+    city_counts = filtered_df['customer_city'].value_counts().head(10)
+    fig, ax = plt.subplots()
+    sns.barplot(x=city_counts.values, y=city_counts.index, palette="Blues_d", ax=ax)
+    ax.set_title("Top 10 Customer Cities")
+    st.pyplot(fig)
+
+with col2:
+    state_counts = filtered_df['customer_state'].value_counts()
+    fig, ax = plt.subplots()
+    sns.barplot(x=state_counts.index, y=state_counts.values, palette='pastel', ax=ax)
+    ax.set_ylabel('Jumlah Pelanggan', fontsize=10)  # Ukuran font label
+    ax.set_title("Distribusi Pelanggan berdasarkan Negara Bagian", fontsize=14)  # Ukuran font judul
+    ax.set_xticklabels(state_counts.index, rotation=45)  # Rotasi label sumbu x agar lebih mudah dibaca
+    st.pyplot(fig)
+    
 
 # Footer
 st.caption("Data sourced from E-commerce dataset. Copyright by Raihan © 2024 ")
